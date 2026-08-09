@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { getDb, type Db } from '../db/client'
 import { options, questions, subjects } from '../db/schema'
 import type { BankQuestion } from './lib/parse-trainer'
@@ -48,9 +48,8 @@ export async function seed(db: Db, opts: { bankPath: string; explanationsPath?: 
     const existing = db
       .select()
       .from(questions)
-      .where(eq(questions.subjectId, subjectId))
-      .all()
-      .find((row) => row.number === q.number)
+      .where(and(eq(questions.subjectId, subjectId), eq(questions.number, q.number)))
+      .get()
 
     let questionId: number
     if (existing) {
@@ -80,14 +79,20 @@ export async function seed(db: Db, opts: { bankPath: string; explanationsPath?: 
 
     const existingOptions = db.select().from(options).where(eq(options.questionId, questionId)).all()
     for (const opt of q.options) {
-      const whyWrong =
-        opt.letter === q.correctKey
-          ? null
-          : (explanation?.whyWrong.find((w) => w.letter === opt.letter)?.text ?? null)
+      const isCorrect = opt.letter === q.correctKey
       const row = existingOptions.find((o) => o.letter === opt.letter)
+      // Fresh data for this specific letter, if this run's explanations cover it.
+      const freshWhyWrong = explanation?.whyWrong.find((w) => w.letter === opt.letter)?.text
+
+      // The correct option must always end up with no why-wrong text, even if a bank
+      // correction just made it correct and it still has stale text stored. Otherwise,
+      // write fresh explanation text when this run has it, and leave the stored value
+      // untouched when it doesn't (e.g. no explanations file yet).
+      const whyWrong = isCorrect ? null : (freshWhyWrong ?? row?.whyWrong ?? null)
+
       if (row) {
         db.update(options)
-          .set({ text: opt.text, whyWrong: whyWrong ?? row.whyWrong })
+          .set({ text: opt.text, whyWrong })
           .where(eq(options.id, row.id))
           .run()
       } else {
