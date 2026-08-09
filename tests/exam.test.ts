@@ -35,6 +35,37 @@ describe('selectExam', () => {
   it('is reproducible for a given seed', () => {
     expect(selectExam(pool(), { seed: 42 }).ids).toEqual(selectExam(pool(), { seed: 42 }).ids)
   })
+
+  it('reports missing subjects when a canonical subject list is supplied', () => {
+    const poolWithoutG = pool().filter((q) => q.subject !== 'G')
+    const result = selectExam(poolWithoutG, { seed: 1, subjects: SUBJECTS })
+    expect(result.shortSubjects).toEqual(['G'])
+    expect(result.ids.length).toBeLessThan(EXAM_SIZE)
+    const byId = new Map(poolWithoutG.map((q) => [q.id, q.subject]))
+    for (const subject of SUBJECTS) {
+      const count = result.ids.filter((id) => byId.get(id) === subject).length
+      if (subject === 'G') {
+        expect(count).toBe(0)
+      } else {
+        expect(count).toBe(PER_CAT)
+      }
+    }
+  })
+
+  it('produces identical results when subjects list is complete and fully populated', () => {
+    const fullPool = pool()
+    const withoutSubjects = selectExam(fullPool, { seed: 42 })
+    const withSubjects = selectExam(fullPool, { seed: 42, subjects: SUBJECTS })
+    expect(withSubjects.ids).toEqual(withoutSubjects.ids)
+    expect(withSubjects.shortSubjects).toEqual(withoutSubjects.shortSubjects)
+  })
+
+  it('reports thin subjects correctly when a canonical subject list is supplied', () => {
+    const thin = pool().filter((q) => q.subject !== 'C' || q.id % 20 < 5)
+    const result = selectExam(thin, { seed: 1, subjects: SUBJECTS })
+    expect(result.shortSubjects).toEqual(['C'])
+    expect(result.ids.length).toBeLessThan(EXAM_SIZE)
+  })
 })
 
 describe('selectDrill', () => {

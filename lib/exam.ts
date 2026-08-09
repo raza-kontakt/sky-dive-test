@@ -30,7 +30,7 @@ export function selectDrill(pool: Selectable[], opts: { count: number; seed: num
 
 export function selectExam(
   pool: Selectable[],
-  opts: { seed: number },
+  opts: { seed: number; subjects?: string[] },
 ): { ids: number[]; shortSubjects: string[] } {
   const next = rng(opts.seed)
   const bySubject = new Map<string, Selectable[]>()
@@ -40,10 +40,13 @@ export function selectExam(
     bySubject.set(q.subject, list)
   }
 
+  // Determine the universe of subjects: use provided list or derive from pool
+  const subjectsList = opts.subjects !== undefined ? opts.subjects.sort() : [...bySubject.keys()].sort()
+
   const ids: number[] = []
   const shortSubjects: string[] = []
-  for (const subject of [...bySubject.keys()].sort()) {
-    const available = bySubject.get(subject)!
+  for (const subject of subjectsList) {
+    const available = bySubject.get(subject) ?? []
     if (available.length < PER_CAT) shortSubjects.push(subject)
     for (const q of weightedShuffle(available, next).slice(0, PER_CAT)) ids.push(q.id)
   }
