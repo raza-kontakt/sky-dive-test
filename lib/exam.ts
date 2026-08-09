@@ -41,7 +41,7 @@ export function selectExam(
   }
 
   // Determine the universe of subjects: use provided list or derive from pool
-  const subjectsList = opts.subjects !== undefined ? opts.subjects.sort() : [...bySubject.keys()].sort()
+  const subjectsList = opts.subjects !== undefined ? [...opts.subjects].sort() : [...bySubject.keys()].sort()
 
   const ids: number[] = []
   const shortSubjects: string[] = []

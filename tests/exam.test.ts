@@ -66,6 +66,13 @@ describe('selectExam', () => {
     expect(result.shortSubjects).toEqual(['C'])
     expect(result.ids.length).toBeLessThan(EXAM_SIZE)
   })
+
+  it('does not mutate the caller\'s subjects array', () => {
+    const unsorted = ['G', 'F', 'E', 'D', 'C', 'B', 'A']
+    const original = [...unsorted]
+    selectExam(pool(), { seed: 1, subjects: unsorted })
+    expect(unsorted).toEqual(original)
+  })
 })
 
 describe('selectDrill', () => {
