@@ -228,21 +228,29 @@ export function TestRunner({
       </div>
 
       <div className="mt-8 grid grid-cols-10 gap-2">
-        {questions.map((q, i) => (
-          <button
-            key={q.id}
-            onClick={() => setIndex(i)}
-            className={`aspect-square rounded text-xs ${
-              i === index
-                ? 'bg-blue-600 text-white'
-                : answers[q.id] !== undefined
-                  ? 'bg-neutral-300 dark:bg-neutral-700'
-                  : 'border border-neutral-300 dark:border-neutral-700'
-            }`}
-          >
-            {i + 1}
-          </button>
-        ))}
+        {questions.map((q, i) => {
+          const isAnswered = answers[q.id] !== undefined
+          const isCorrect = isAnswered && answers[q.id] === q.correctKey
+          const isIncorrect = isAnswered && answers[q.id] !== q.correctKey
+
+          return (
+            <button
+              key={q.id}
+              onClick={() => setIndex(i)}
+              className={`aspect-square rounded text-xs font-medium transition ${
+                i === index
+                  ? 'bg-blue-600 text-white'
+                  : isCorrect
+                    ? 'bg-green-600 text-white'
+                    : isIncorrect
+                      ? 'bg-red-600 text-white'
+                      : 'border border-neutral-300 dark:border-neutral-700'
+              }`}
+            >
+              {i + 1}
+            </button>
+          )
+        })}
       </div>
     </main>
   )
