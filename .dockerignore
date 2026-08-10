@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env.local
+.env
+.next
+out
+build
+dist
+*.md
+.DS_Store
+.superpowers
+tests
+scripts
+docs
