@@ -137,56 +137,22 @@ export function TestRunner({
     })
   }
 
-  function optionStyle(letter: string): React.CSSProperties {
-    const baseStyle: React.CSSProperties = {
-      width: '100%',
-      borderRadius: '8px',
-      padding: '12px 16px',
-      textAlign: 'left',
-      border: `1px solid var(--line)`,
-      backgroundColor: 'var(--surface)',
-      color: 'var(--text)',
-      cursor: revealed ? 'default' : 'pointer',
-      fontSize: '16px',
-      fontWeight: '500',
-    }
-
+  function optionClass(letter: string) {
+    const base =
+      'w-full rounded-lg border px-3 py-4 text-left transition-colors dark:border-neutral-700 border-neutral-300'
     if (!revealed) {
-      if (chosen === letter) {
-        return {
-          ...baseStyle,
-          borderColor: 'var(--blue)',
-          backgroundColor: 'rgba(59, 142, 232, 0.08)',
-          fontWeight: '600',
-        }
-      }
-      return baseStyle
+      return chosen === letter
+        ? `${base} border-blue-600 bg-blue-50 dark:bg-blue-950 font-medium`
+        : `${base} hover:bg-neutral-50 dark:hover:bg-neutral-900 cursor-pointer`
     }
-
-    if (letter === question.correctKey) {
-      return {
-        ...baseStyle,
-        borderColor: 'var(--green)',
-        backgroundColor: 'rgba(18, 178, 122, 0.08)',
-        fontWeight: '600',
-      }
-    }
-
-    if (letter === chosen) {
-      return {
-        ...baseStyle,
-        borderColor: 'var(--error)',
-        backgroundColor: 'rgba(255, 90, 60, 0.08)',
-        fontWeight: '600',
-      }
-    }
-
-    return { ...baseStyle, opacity: 0.5 }
+    if (letter === question.correctKey) return `${base} border-green-600 bg-green-50 dark:bg-green-950 font-medium`
+    if (letter === chosen) return `${base} border-red-600 bg-red-50 dark:bg-red-950 font-medium`
+    return `${base} opacity-60`
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-10" style={{ backgroundColor: 'var(--background)', color: 'var(--text)' }}>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm" style={{ color: 'var(--muted)' }}>
+    <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-10">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
         <span>
           Q{index + 1}/{questions.length} · {answeredCount} answered
         </span>
@@ -198,22 +164,19 @@ export function TestRunner({
         </span>
       </div>
 
-      <div className="mt-2 h-1 w-full rounded" style={{ backgroundColor: 'var(--line)' }}>
+      <div className="mt-2 h-1 w-full rounded bg-neutral-200 dark:bg-neutral-800">
         <div
-          className="h-1 rounded transition-all"
-          style={{
-            width: `${(answeredCount / questions.length) * 100}%`,
-            backgroundColor: 'var(--blue)',
-          }}
+          className="h-1 rounded bg-blue-600 transition-all"
+          style={{ width: `${(answeredCount / questions.length) * 100}%` }}
         />
       </div>
 
-      {error && <p className="mt-4 text-sm" style={{ color: 'var(--error)' }}>{error}</p>}
+      {error && <p className="mt-4 text-sm text-red-600 dark:text-red-500">{error}</p>}
 
-      <p className="mt-4 sm:mt-6 text-xs uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+      <p className="mt-4 sm:mt-6 text-xs uppercase tracking-wide text-neutral-500">
         {question.subject} · Q{question.number}
       </p>
-      <h1 className="mt-2 whitespace-pre-line text-lg sm:text-xl font-semibold" style={{ color: 'var(--text)' }}>{question.stem}</h1>
+      <h1 className="mt-2 whitespace-pre-line text-lg sm:text-xl font-semibold">{question.stem}</h1>
       <QuestionImage src={question.imagePath} />
 
       <div className="mt-6 flex flex-col gap-2">
@@ -221,7 +184,7 @@ export function TestRunner({
           <button
             key={option.letter}
             onClick={() => choose(option.letter)}
-            style={optionStyle(option.letter)}
+            className={optionClass(option.letter)}
             disabled={revealed}
             type="button"
           >
@@ -232,27 +195,17 @@ export function TestRunner({
       </div>
 
       {revealed && (
-        <div
-          className="mt-6 rounded-lg border p-3 sm:p-4"
-          style={{
-            borderColor: 'var(--line)',
-            backgroundColor: 'var(--surface)',
-            borderLeft: `4px solid ${chosen === question.correctKey ? 'var(--green)' : 'var(--error)'}`,
-          }}
-        >
-          <p
-            className="font-semibold text-sm sm:text-base"
-            style={{ color: chosen === question.correctKey ? 'var(--green)' : 'var(--error)' }}
-          >
+        <div className="mt-6 rounded-lg border border-neutral-200 p-3 sm:p-4 dark:border-neutral-800 bg-white dark:bg-neutral-900/50">
+          <p className={`font-semibold text-sm sm:text-base ${chosen === question.correctKey ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
             {chosen === question.correctKey ? '✓ Correct!' : `✗ Wrong — answer is ${question.correctKey.toUpperCase()}`}
           </p>
           {chosen !== question.correctKey && (
-            <p className="mt-2 text-xs sm:text-sm" style={{ color: 'var(--muted)' }}>
+            <p className="mt-2 text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
               {question.options.find((o) => o.letter === chosen)?.whyWrong ||
                 'No explanation generated.'}
             </p>
           )}
-          <p className="mt-3 text-xs sm:text-sm" style={{ color: 'var(--text)' }}>
+          <p className="mt-3 text-xs sm:text-sm text-neutral-700 dark:text-neutral-300">
             {question.explanation || 'No explanation generated.'}
           </p>
         </div>
@@ -262,13 +215,7 @@ export function TestRunner({
         <button
           onClick={() => setIndex((i) => Math.max(0, i - 1))}
           disabled={index === 0}
-          className="rounded-lg px-3 sm:px-4 py-2 text-sm sm:text-base disabled:opacity-40 transition-colors font-medium"
-          style={{
-            border: `1px solid var(--line)`,
-            backgroundColor: 'var(--surface)',
-            color: 'var(--text)',
-            cursor: index === 0 ? 'default' : 'pointer',
-          }}
+          className="rounded-lg border border-neutral-300 px-3 sm:px-4 py-2 text-sm sm:text-base disabled:opacity-40 dark:border-neutral-700 transition-colors"
           type="button"
         >
           ← Prev
@@ -276,11 +223,7 @@ export function TestRunner({
         {index === questions.length - 1 ? (
           <button
             onClick={finish}
-            className="rounded-lg px-4 sm:px-5 py-2 sm:py-2.5 font-medium text-white text-sm sm:text-base transition-colors"
-            style={{
-              backgroundColor: 'var(--blue)',
-              cursor: 'pointer',
-            }}
+            className="rounded-lg bg-blue-600 px-4 sm:px-5 py-2 sm:py-2.5 font-medium text-white text-sm sm:text-base hover:bg-blue-700 transition-colors"
             type="button"
           >
             Finish
@@ -288,13 +231,7 @@ export function TestRunner({
         ) : (
           <button
             onClick={() => setIndex((i) => Math.min(questions.length - 1, i + 1))}
-            className="rounded-lg px-3 sm:px-4 py-2 text-sm sm:text-base transition-colors font-medium"
-            style={{
-              border: `1px solid var(--line)`,
-              backgroundColor: 'var(--surface)',
-              color: 'var(--text)',
-              cursor: 'pointer',
-            }}
+            className="rounded-lg border border-neutral-300 px-3 sm:px-4 py-2 text-sm sm:text-base dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
             type="button"
           >
             Next →
@@ -308,35 +245,19 @@ export function TestRunner({
           const isCorrect = isAnswered && answers[q.id] === q.correctKey
           const isIncorrect = isAnswered && answers[q.id] !== q.correctKey
 
-          let backgroundColor = 'var(--surface)'
-          let borderColor = 'var(--line)'
-          let textColor = 'var(--text)'
-
-          if (i === index) {
-            backgroundColor = 'var(--blue)'
-            textColor = '#fff'
-            borderColor = 'var(--blue)'
-          } else if (isCorrect) {
-            backgroundColor = 'var(--green)'
-            textColor = '#fff'
-            borderColor = 'var(--green)'
-          } else if (isIncorrect) {
-            backgroundColor = 'var(--error)'
-            textColor = '#fff'
-            borderColor = 'var(--error)'
-          }
-
           return (
             <button
               key={q.id}
               onClick={() => setIndex(i)}
-              className="aspect-square rounded text-xs font-medium transition"
-              style={{
-                backgroundColor,
-                color: textColor,
-                border: `1px solid ${borderColor}`,
-                cursor: 'pointer',
-              }}
+              className={`aspect-square rounded text-xs font-medium transition ${
+                i === index
+                  ? 'bg-blue-600 text-white'
+                  : isCorrect
+                    ? 'bg-green-600 text-white'
+                    : isIncorrect
+                      ? 'bg-red-600 text-white'
+                      : 'border border-neutral-300 dark:border-neutral-700'
+              }`}
             >
               {i + 1}
             </button>
