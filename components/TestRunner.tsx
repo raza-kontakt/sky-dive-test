@@ -41,6 +41,7 @@ export function TestRunner({
   const [flags, setFlags] = useState<Record<number, boolean>>(
     Object.fromEntries(questions.map((q) => [q.id, q.flagged])),
   )
+  const [error, setError] = useState<string | null>(null)
 
   const question = questions[index]
   const chosen = answers[question.id]
@@ -49,17 +50,40 @@ export function TestRunner({
 
   function choose(letter: string) {
     if (revealed) return
-    setAnswers((prev) => ({ ...prev, [question.id]: letter }))
-    startTransition(() => {
-      void recordAnswer({ sessionId, questionId: question.id, chosenKey: letter })
+    const questionId = question.id
+    const previous = answers[questionId]
+    setAnswers((prev) => ({ ...prev, [questionId]: letter }))
+    startTransition(async () => {
+      try {
+        await recordAnswer({ sessionId, questionId, chosenKey: letter })
+        setError(null)
+      } catch {
+        setAnswers((prev) => {
+          if (previous === undefined) {
+            const next = { ...prev }
+            delete next[questionId]
+            return next
+          }
+          return { ...prev, [questionId]: previous }
+        })
+        setError('Your answer could not be saved. Please try again.')
+      }
     })
   }
 
   function flip() {
-    const next = !flags[question.id]
-    setFlags((prev) => ({ ...prev, [question.id]: next }))
-    startTransition(() => {
-      void toggleFlag(question.id)
+    const questionId = question.id
+    const previous = flags[questionId]
+    const next = !previous
+    setFlags((prev) => ({ ...prev, [questionId]: next }))
+    startTransition(async () => {
+      try {
+        await toggleFlag(questionId)
+        setError(null)
+      } catch {
+        setFlags((prev) => ({ ...prev, [questionId]: previous }))
+        setError('Your flag could not be saved. Please try again.')
+      }
     })
   }
 
@@ -103,6 +127,8 @@ export function TestRunner({
           style={{ width: `${(answeredCount / questions.length) * 100}%` }}
         />
       </div>
+
+      {error && <p className="mt-4 text-sm text-red-600 dark:text-red-500">{error}</p>}
 
       <p className="mt-6 text-xs uppercase tracking-wide text-neutral-500">
         {question.subject} · No {question.number}
