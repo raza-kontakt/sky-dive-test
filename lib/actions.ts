@@ -30,6 +30,7 @@ export async function createDrillSession(input: {
 
 export async function createExamSession() {
   const pool = getSelectablePool({ source: 'all' })
+  if (pool.length === 0) throw new Error('No questions available for an exam.')
   const { ids, shortSubjects } = selectExam(pool, {
     seed: Date.now(),
     subjects: listSubjects().map((s) => s.name),
@@ -105,8 +106,16 @@ export async function saveNote(questionId: number, note: string) {
 }
 
 export async function saveExplanation(questionId: number, explanation: string) {
+  // A blank submission clears the explanation rather than marking it user-edited,
+  // so a future `npm run explain` + seed can still fill it in. Only a genuinely
+  // non-blank save is treated as a protected, hand-written explanation.
+  const isBlank = explanation.trim() === ''
   db.update(questions)
-    .set({ explanation, explanationEditedAt: Date.now() })
+    .set(
+      isBlank
+        ? { explanation: null, explanationEditedAt: null }
+        : { explanation, explanationEditedAt: Date.now() },
+    )
     .where(eq(questions.id, questionId))
     .run()
   revalidatePath(`/question/${questionId}`)

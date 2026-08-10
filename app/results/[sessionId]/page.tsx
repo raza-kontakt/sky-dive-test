@@ -109,7 +109,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ sessio
                 <b>Correct:</b> {correct.letter.toUpperCase()}) {correct.text}
               </p>
               <p className="mt-2 text-sm">
-                {question.explanation ?? (
+                {question.explanation || (
                   <span className="text-neutral-500">Explanation not generated.</span>
                 )}
               </p>

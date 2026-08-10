@@ -40,7 +40,9 @@ export default function Home() {
         <span>{stats.attempts} answers recorded</span>
         {accuracy !== null && <span>{accuracy}% overall accuracy</span>}
         {stats.lastExamPercent !== null && (
-          <span>Last exam: {Math.round(stats.lastExamPercent)}%</span>
+          <span>
+            Last exam: {Math.round(stats.lastExamPercent)}% ({stats.lastExamPassed ? 'passed' : 'not a pass'})
+          </span>
         )}
         <Link href="/flagged" className="text-blue-600 hover:underline">
           {stats.flaggedCount} flagged

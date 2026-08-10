@@ -44,7 +44,7 @@ export default async function QuestionPage({ params }: { params: Promise<{ id: s
 
       <QuestionEditor
         questionId={question.id}
-        initialExplanation={question.explanation ?? ''}
+        initialExplanation={question.explanation || ''}
         initialNote={question.note ?? ''}
         initialFlagged={question.flagged}
       />

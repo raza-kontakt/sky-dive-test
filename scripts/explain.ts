@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { z } from 'zod'
@@ -40,6 +40,14 @@ const records = [...existing]
 
 const pending = bank.questions.filter((q) => !done.has(`${q.subject}#${q.number}`))
 console.log(`${records.length} already generated, ${pending.length} to go`)
+
+// Rename is atomic, so a crash mid-write leaves either the old complete file or the
+// new complete file, never a truncated one that would corrupt the resumable run.
+function writeRecordsAtomic(records: ExplanationRecord[]) {
+  const tmpPath = `${OUT_PATH}.tmp`
+  writeFileSync(tmpPath, JSON.stringify({ records }, null, 2))
+  renameSync(tmpPath, OUT_PATH)
+}
 
 function buildContent(q: BankQuestion): Anthropic.MessageParam['content'] {
   const text = [
@@ -93,7 +101,7 @@ async function main() {
     const batch = pending.slice(i, i + CONCURRENCY)
     const results = await Promise.all(batch.map(explain))
     for (const result of results) if (result) records.push(result)
-    writeFileSync(OUT_PATH, JSON.stringify({ records }, null, 2))
+    writeRecordsAtomic(records)
     console.log(`${records.length}/${bank.questions.length}`)
   }
 

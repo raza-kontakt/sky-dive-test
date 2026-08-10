@@ -11,7 +11,7 @@ export default function FlaggedPage() {
 
   async function drillFlagged() {
     'use server'
-    const id = await createDrillSession({ count: 100, source: 'flagged' })
+    const id = await createDrillSession({ count: ids.length, source: 'flagged' })
     redirect(`/test/${id}`)
   }
 

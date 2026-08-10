@@ -44,20 +44,30 @@ export function TestRunner({
   const [error, setError] = useState<string | null>(null)
   const answersInFlight = useRef<Set<number>>(new Set())
   const flagsInFlight = useRef<Set<number>>(new Set())
+  const finishInFlight = useRef(false)
 
   const question = questions[index]
-  const chosen = answers[question.id]
-  const revealed = instantFeedback && chosen !== undefined
-  const answeredCount = Object.keys(answers).length
 
   // A failure on one question shouldn't keep glowing red while the user has moved on.
   // Adjusted during render (React's documented pattern for resetting state when a
   // prop/key changes) rather than in a useEffect, so it takes effect before paint.
-  const [errorQuestionId, setErrorQuestionId] = useState(question.id)
-  if (errorQuestionId !== question.id) {
-    setErrorQuestionId(question.id)
+  const [errorQuestionId, setErrorQuestionId] = useState(question?.id)
+  if (errorQuestionId !== question?.id) {
+    setErrorQuestionId(question?.id)
     setError(null)
   }
+
+  if (!question) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 sm:p-10">
+        <p className="text-neutral-600 dark:text-neutral-400">This session has no questions.</p>
+      </main>
+    )
+  }
+
+  const chosen = answers[question.id]
+  const revealed = instantFeedback && chosen !== undefined
+  const answeredCount = Object.keys(answers).length
 
   function choose(letter: string) {
     if (revealed) return
@@ -113,9 +123,17 @@ export function TestRunner({
   }
 
   function finish() {
+    if (finishInFlight.current) return
+    finishInFlight.current = true
     startTransition(async () => {
-      await finishSession(sessionId)
-      router.push(`/results/${sessionId}`)
+      try {
+        await finishSession(sessionId)
+        router.push(`/results/${sessionId}`)
+      } catch {
+        setError('Your session could not be finished. Please try again.')
+      } finally {
+        finishInFlight.current = false
+      }
     })
   }
 
@@ -177,12 +195,12 @@ export function TestRunner({
           </p>
           {chosen !== question.correctKey && (
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-              {question.options.find((o) => o.letter === chosen)?.whyWrong ??
+              {question.options.find((o) => o.letter === chosen)?.whyWrong ||
                 'No note generated for this option.'}
             </p>
           )}
           <p className="mt-3 text-sm">
-            {question.explanation ?? 'Explanation not generated for this question.'}
+            {question.explanation || 'Explanation not generated for this question.'}
           </p>
         </div>
       )}

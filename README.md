@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DFV Theory Trainer
 
-## Getting Started
+A local practice app for the Deutscher Fallschirmsportverband (DFV) skydiving theory exam. It
+stores the full 513-question bank in SQLite and adds instant-feedback drills, a 98-question exam
+simulation with a per-subject pass/fail verdict, flags, private notes, and a generated explanation
+for every question and wrong answer.
 
-First, run the development server:
+See `docs/superpowers/specs/2026-08-09-dfv-trainer-design.md` for the full design.
+
+## Running it
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. The dev server also listens on your machine's LAN address, so you can
+use it from a phone on the same Wi-Fi: find your computer's local IP (on macOS, System Settings →
+Wi-Fi → Details, or `ipconfig getifaddr en0`) and open `http://<that-ip>:3000` on the phone.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## One-time data pipeline
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The database is not part of the repo and has to be built once, in this order:
 
-## Learn More
+```bash
+npm run extract  # DFV_Theory_Trainer.html -> data/bank.json + public/q/*.png
+npm run explain  # data/bank.json -> data/explanations.json (calls the Claude API)
+npm run seed     # data/bank.json + data/explanations.json -> data/app.db
+```
 
-To learn more about Next.js, take a look at the following resources:
+`npm run extract` reads the source trainer HTML and writes the question bank and images.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`npm run explain` generates an explanation and a per-wrong-answer note for every question by
+calling the Claude API. It requires an `ANTHROPIC_API_KEY` environment variable and costs a few
+dollars for a full run (~513 questions). It is resumable — rerunning it only fills in whatever is
+still missing from `data/explanations.json` — so it's safe to stop and restart if it's interrupted.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`npm run seed` loads the bank and explanations into `data/app.db`. If you skip `npm run explain`,
+the app still runs; every question just shows a "not generated" explanation until you run it.
 
-## Deploy on Vercel
+## Re-seeding
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Re-running `npm run seed` after updating `data/bank.json` or `data/explanations.json` is safe:
+flags, notes, past attempts, and any explanation you've hand-edited in the app all survive. Only
+the question/option text and any explanation that hasn't been edited get refreshed from the source
+files.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Other scripts
+
+```bash
+npm test             # vitest unit tests
+npm run lint         # eslint
+npm run build        # production build
+npm run db:generate  # regenerate drizzle migrations after a schema change
+npm run db:migrate   # apply migrations directly (npm run seed does this automatically)
+```

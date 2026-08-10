@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { getDb } from '@/db/client'
 import { attempts, options, questionMeta, questions, sessions, subjects } from '@/db/schema'
-import type { Selectable } from './exam'
+import { score, type Selectable } from './exam'
 
 const db = getDb()
 
@@ -141,13 +141,21 @@ export function getOverallStats() {
     .get()
 
   let lastExamPercent: number | null = null
+  let lastExamPassed: boolean | null = null
   if (lastExam) {
-    const examAttempts = getSessionAttempts(lastExam.id)
     const config = JSON.parse(lastExam.configJson) as SessionConfig
-    const correct = examAttempts.filter((a) => a.isCorrect).length
-    lastExamPercent = config.questionIds.length
-      ? (correct / config.questionIds.length) * 100
-      : null
+    const examQuestions = getQuestions(config.questionIds)
+    const attemptsByQuestion = new Map(getSessionAttempts(lastExam.id).map((a) => [a.questionId, a]))
+    // Same score() the results page uses, so the two verdicts can never disagree —
+    // an exam's real pass/fail is per-subject, not the overall percentage.
+    const result = score(
+      examQuestions.map((q) => ({
+        subject: q.subject,
+        isCorrect: attemptsByQuestion.get(q.id)?.isCorrect ?? false,
+      })),
+    )
+    lastExamPercent = examQuestions.length ? result.overallPercent : null
+    lastExamPassed = examQuestions.length ? result.passed : null
   }
 
   const flaggedCount = db.select().from(questionMeta).where(eq(questionMeta.flagged, true)).all().length
@@ -156,6 +164,7 @@ export function getOverallStats() {
     attempts: all.length,
     correct: all.filter((a) => a.isCorrect).length,
     lastExamPercent,
+    lastExamPassed,
     flaggedCount,
   }
 }
