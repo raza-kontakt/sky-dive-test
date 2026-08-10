@@ -13,7 +13,9 @@ export default function Home() {
   try {
     subjects = listSubjects()
     stats = getOverallStats()
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (!message.includes('no such table')) throw error
     redirect('/setup')
   }
   if (subjects.length === 0) redirect('/setup')
