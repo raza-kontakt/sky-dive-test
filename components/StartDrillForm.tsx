@@ -32,7 +32,7 @@ export function StartDrillForm({ subjects }: { subjects: { name: string; count: 
           onChange={(e) => setCount(Number(e.target.value))}
           className="rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
         >
-          {[10, 20, 50].map((n) => (
+          {[5, 10, 20, 50, 100, 150].map((n) => (
             <option key={n} value={n}>
               {n} questions
             </option>

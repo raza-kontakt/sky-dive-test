@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { StartDrillForm } from '@/components/StartDrillForm'
+import { FlaggedDrillForm } from '@/components/FlaggedDrillForm'
 import { EXAM_SIZE, PASS, PER_CAT } from '@/lib/constants'
 import { createExamSession } from '@/lib/actions'
-import { getOverallStats, listSubjects } from '@/lib/queries'
+import { getOverallStats, listSubjects, getSelectablePool } from '@/lib/queries'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,13 @@ export default function Home() {
     redirect('/setup')
   }
   if (subjects.length === 0) redirect('/setup')
+
+  // Get flagged questions grouped by subject
+  const flaggedPool = getSelectablePool({ source: 'flagged' })
+  const flaggedBySubject = new Map<string, number>()
+  for (const item of flaggedPool) {
+    flaggedBySubject.set(item.subject, (flaggedBySubject.get(item.subject) || 0) + 1)
+  }
 
   async function startExam() {
     'use server'
@@ -44,9 +52,7 @@ export default function Home() {
             Last exam: {Math.round(stats.lastExamPercent)}% ({stats.lastExamPassed ? 'passed' : 'not a pass'})
           </span>
         )}
-        <Link href="/flagged" className="text-blue-600 hover:underline">
-          {stats.flaggedCount} flagged
-        </Link>
+        {stats.flaggedCount > 0 && <span>{stats.flaggedCount} flagged</span>}
       </div>
 
       <section className="mt-10 rounded-xl border border-neutral-200 p-6 dark:border-neutral-800">
@@ -56,6 +62,16 @@ export default function Home() {
         </p>
         <StartDrillForm subjects={subjects} />
       </section>
+
+      {stats.flaggedCount > 0 && (
+        <section className="mt-6 rounded-xl border border-neutral-200 p-6 dark:border-neutral-800">
+          <h2 className="text-lg font-medium">Practice flagged questions</h2>
+          <p className="mb-4 mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+            Focus on questions you've flagged for review.
+          </p>
+          <FlaggedDrillForm subjects={subjects} flaggedBySubject={flaggedBySubject} totalFlagged={stats.flaggedCount} />
+        </section>
+      )}
 
       <section className="mt-6 rounded-xl border border-neutral-200 p-6 dark:border-neutral-800">
         <h2 className="text-lg font-medium">Exam simulation</h2>

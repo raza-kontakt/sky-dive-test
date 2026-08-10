@@ -12,5 +12,7 @@ dist
 .DS_Store
 .superpowers
 tests
-scripts
 docs
+data/app.db
+data/app.db-*
+data/source

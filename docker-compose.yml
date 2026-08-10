@@ -1,21 +1,13 @@
-version: '3.8'
-
 services:
   app:
     build: .
+    image: dfv-trainer
     container_name: dfv-trainer
     ports:
-      - "3000:3000"
+      # Override APP_BIND/APP_PORT in .env when 3000 is taken or the app should
+      # only listen on loopback (behind a reverse proxy).
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-3000}:3000"
     volumes:
+      # SQLite database only. Question images ship inside the image.
       - ./data:/app/data
-      - ./public:/app/public
-    environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_APP_URL=http://localhost:3000
     restart: unless-stopped
-    networks:
-      - dfv-net
-
-networks:
-  dfv-net:
-    driver: bridge

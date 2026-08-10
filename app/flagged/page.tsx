@@ -1,16 +1,41 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createDrillSession } from '@/lib/actions'
-import { getQuestions, getSelectablePool } from '@/lib/queries'
+import { getQuestions, getSelectablePool, listSubjects } from '@/lib/queries'
+import { FlaggedQuestionsClient } from '@/components/FlaggedQuestionsClient'
 
 export const dynamic = 'force-dynamic'
 
 export default function FlaggedPage() {
-  const ids = getSelectablePool({ source: 'flagged' }).map((entry) => entry.id)
-  const rows = getQuestions(ids)
+  const allFlaggedPool = getSelectablePool({ source: 'flagged' })
+  const subjects = listSubjects()
+
+  // Group flagged questions by subject
+  const bySubject = new Map<string, typeof allFlaggedPool>()
+  for (const item of allFlaggedPool) {
+    if (!bySubject.has(item.subject)) {
+      bySubject.set(item.subject, [])
+    }
+    bySubject.get(item.subject)!.push(item)
+  }
+
+  const subjectGroups = Array.from(bySubject.entries()).map(([subject, items]) => ({
+    subject,
+    ids: items.map((i) => i.id),
+    count: items.length,
+  }))
+
+  const rows = getQuestions(allFlaggedPool.map((entry) => entry.id))
 
   async function drillFlagged() {
     'use server'
+    const id = await createDrillSession({ count: allFlaggedPool.length, source: 'flagged' })
+    redirect(`/test/${id}`)
+  }
+
+  async function drillBySubject(subject: string) {
+    'use server'
+    const ids = getSelectablePool({ source: 'flagged', subject }).map((entry) => entry.id)
     const id = await createDrillSession({ count: ids.length, source: 'flagged' })
     redirect(`/test/${id}`)
   }
@@ -20,28 +45,36 @@ export default function FlaggedPage() {
       <Link href="/" className="text-sm text-blue-600 hover:underline">
         ← Home
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold">Flagged ({rows.length})</h1>
+      <h1 className="mt-4 text-2xl font-semibold">Flagged Questions ({rows.length})</h1>
 
       {rows.length > 0 && (
-        <form action={drillFlagged} className="mt-4">
-          <button className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white">
-            Drill these
-          </button>
-        </form>
+        <div className="mt-6 space-y-4">
+          <form action={drillFlagged}>
+            <button className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700">
+              Practice All Flagged
+            </button>
+          </form>
+
+          {subjectGroups.length > 1 && (
+            <div>
+              <p className="mb-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Practice by category:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {subjectGroups.map((group) => (
+                  <form key={group.subject} action={drillBySubject.bind(null, group.subject)}>
+                    <button className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800">
+                      {group.subject} ({group.count})
+                    </button>
+                  </form>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      <ul className="mt-6 divide-y divide-neutral-200 dark:divide-neutral-800">
-        {rows.map((question) => (
-          <li key={question.id} className="py-3">
-            <Link href={`/question/${question.id}`} className="block hover:opacity-70">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">
-                {question.subject} · No {question.number}
-              </span>
-              <p className="mt-1">{question.stem}</p>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <FlaggedQuestionsClient questions={rows} subjectGroups={subjectGroups} />
     </main>
   )
 }

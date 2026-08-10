@@ -1,7 +1,10 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
+import { DEFAULT_DB_FILE, getDb } from '../db/client'
+import { options, questions, subjects } from '../db/schema'
 import type { BankQuestion } from './lib/parse-trainer'
 import type { ExplanationRecord } from './seed'
 
@@ -32,14 +35,65 @@ Keep it brief: a student is reading this immediately after getting the question 
 const client = new Anthropic()
 const bank: { questions: BankQuestion[] } = JSON.parse(readFileSync(BANK_PATH, 'utf8'))
 
+function key(record: { subject: string; number: number }) {
+  return `${record.subject}#${record.number}`
+}
+
+// The database is the durable store; data/explanations.json is only the portable
+// artifact that carries explanations to a fresh deployment, and it is gitignored.
+// Reading what the database already holds means a lost or partial JSON file costs
+// a re-read rather than 500 regenerated explanations.
+function loadFromDatabase(): ExplanationRecord[] {
+  if (!existsSync(DEFAULT_DB_FILE)) return []
+
+  let rows: { subject: string; number: number; explanation: string | null; letter: string | null; whyWrong: string | null }[]
+  try {
+    rows = getDb()
+      .select({
+        subject: subjects.name,
+        number: questions.number,
+        explanation: questions.explanation,
+        letter: options.letter,
+        whyWrong: options.whyWrong,
+      })
+      .from(questions)
+      .innerJoin(subjects, eq(subjects.id, questions.subjectId))
+      .leftJoin(options, eq(options.questionId, questions.id))
+      .all()
+  } catch (error) {
+    // An unseeded database file has no tables yet — nothing to recover, not a failure.
+    const message = error instanceof Error ? error.message : String(error)
+    if (!message.includes('no such table')) throw error
+    return []
+  }
+
+  const byQuestion = new Map<string, ExplanationRecord>()
+  for (const row of rows) {
+    if (row.explanation === null) continue
+    const id = key(row)
+    const record = byQuestion.get(id) ?? { subject: row.subject, number: row.number, explanation: row.explanation, whyWrong: [] }
+    if (row.letter !== null && row.whyWrong !== null) record.whyWrong.push({ letter: row.letter, text: row.whyWrong })
+    byQuestion.set(id, record)
+  }
+  return [...byQuestion.values()]
+}
+
 const existing: ExplanationRecord[] = existsSync(OUT_PATH)
   ? JSON.parse(readFileSync(OUT_PATH, 'utf8')).records
   : []
-const done = new Set(existing.map((r) => `${r.subject}#${r.number}`))
+const done = new Set(existing.map(key))
 const records = [...existing]
 
-const pending = bank.questions.filter((q) => !done.has(`${q.subject}#${q.number}`))
-console.log(`${records.length} already generated, ${pending.length} to go`)
+const recovered = loadFromDatabase().filter((record) => !done.has(key(record)))
+for (const record of recovered) {
+  records.push(record)
+  done.add(key(record))
+}
+
+const pending = bank.questions.filter((q) => !done.has(key(q)))
+console.log(
+  `${records.length} already generated${recovered.length ? ` (${recovered.length} recovered from ${DEFAULT_DB_FILE})` : ''}, ${pending.length} to go`,
+)
 
 // Rename is atomic, so a crash mid-write leaves either the old complete file or the
 // new complete file, never a truncated one that would corrupt the resumable run.
@@ -79,12 +133,16 @@ function isFatalAuthError(error: unknown): boolean {
 
 async function explain(q: BankQuestion): Promise<ExplanationRecord | null> {
   try {
+    // Thinking is on by default on Opus 5, and max_tokens caps thinking plus the
+    // structured output together — 4000 left a five-option explanation liable to
+    // truncate into `stop_reason: max_tokens` and a null parsed_output. These are
+    // short study notes, so low effort keeps the run cheap across ~500 questions.
     const response = await client.messages.parse({
       model: 'claude-opus-5',
-      max_tokens: 4000,
+      max_tokens: 8000,
       system: SYSTEM,
       messages: [{ role: 'user', content: buildContent(q) }],
-      output_config: { format: zodOutputFormat(ExplanationSchema) },
+      output_config: { effort: 'low', format: zodOutputFormat(ExplanationSchema) },
     })
     const parsed = response.parsed_output
     if (!parsed) throw new Error(`no parsed output (stop_reason: ${response.stop_reason})`)
@@ -97,6 +155,10 @@ async function explain(q: BankQuestion): Promise<ExplanationRecord | null> {
 }
 
 async function main() {
+  // Persist recovered records up front so the artifact is repaired even when there
+  // is nothing left to generate and the loop below never runs.
+  if (recovered.length) writeRecordsAtomic(records)
+
   for (let i = 0; i < pending.length; i += CONCURRENCY) {
     const batch = pending.slice(i, i + CONCURRENCY)
     const results = await Promise.all(batch.map(explain))
