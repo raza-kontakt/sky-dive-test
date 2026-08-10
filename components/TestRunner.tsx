@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { QuestionImage } from '@/components/QuestionImage'
 import { finishSession, recordAnswer, toggleFlag } from '@/lib/actions'
 import type { QuestionView } from '@/lib/queries'
@@ -42,23 +42,38 @@ export function TestRunner({
     Object.fromEntries(questions.map((q) => [q.id, q.flagged])),
   )
   const [error, setError] = useState<string | null>(null)
+  const answersInFlight = useRef<Set<number>>(new Set())
+  const flagsInFlight = useRef<Set<number>>(new Set())
 
   const question = questions[index]
   const chosen = answers[question.id]
   const revealed = instantFeedback && chosen !== undefined
   const answeredCount = Object.keys(answers).length
 
+  // A failure on one question shouldn't keep glowing red while the user has moved on.
+  // Adjusted during render (React's documented pattern for resetting state when a
+  // prop/key changes) rather than in a useEffect, so it takes effect before paint.
+  const [errorQuestionId, setErrorQuestionId] = useState(question.id)
+  if (errorQuestionId !== question.id) {
+    setErrorQuestionId(question.id)
+    setError(null)
+  }
+
   function choose(letter: string) {
     if (revealed) return
     const questionId = question.id
+    if (answersInFlight.current.has(questionId)) return
     const previous = answers[questionId]
     setAnswers((prev) => ({ ...prev, [questionId]: letter }))
+    answersInFlight.current.add(questionId)
     startTransition(async () => {
       try {
         await recordAnswer({ sessionId, questionId, chosenKey: letter })
         setError(null)
       } catch {
         setAnswers((prev) => {
+          // A later call already superseded this one — leave its result alone.
+          if (prev[questionId] !== letter) return prev
           if (previous === undefined) {
             const next = { ...prev }
             delete next[questionId]
@@ -67,22 +82,32 @@ export function TestRunner({
           return { ...prev, [questionId]: previous }
         })
         setError('Your answer could not be saved. Please try again.')
+      } finally {
+        answersInFlight.current.delete(questionId)
       }
     })
   }
 
   function flip() {
     const questionId = question.id
+    if (flagsInFlight.current.has(questionId)) return
     const previous = flags[questionId]
     const next = !previous
     setFlags((prev) => ({ ...prev, [questionId]: next }))
+    flagsInFlight.current.add(questionId)
     startTransition(async () => {
       try {
         await toggleFlag(questionId)
         setError(null)
       } catch {
-        setFlags((prev) => ({ ...prev, [questionId]: previous }))
+        setFlags((prev) => {
+          // A later call already superseded this one — leave its result alone.
+          if (prev[questionId] !== next) return prev
+          return { ...prev, [questionId]: previous }
+        })
         setError('Your flag could not be saved. Please try again.')
+      } finally {
+        flagsInFlight.current.delete(questionId)
       }
     })
   }
