@@ -139,26 +139,26 @@ export function TestRunner({
 
   function optionClass(letter: string) {
     const base =
-      'w-full rounded-lg border px-4 py-3 text-left transition dark:border-neutral-700 border-neutral-300'
+      'w-full rounded-lg border px-3 py-4 text-left transition-colors dark:border-neutral-700 border-neutral-300'
     if (!revealed) {
       return chosen === letter
-        ? `${base} border-blue-600 bg-blue-50 dark:bg-blue-950`
-        : `${base} hover:border-blue-400`
+        ? `${base} border-blue-600 bg-blue-50 dark:bg-blue-950 font-medium`
+        : `${base} hover:bg-neutral-50 dark:hover:bg-neutral-900 cursor-pointer`
     }
-    if (letter === question.correctKey) return `${base} border-green-600 bg-green-50 dark:bg-green-950`
-    if (letter === chosen) return `${base} border-red-600 bg-red-50 dark:bg-red-950`
+    if (letter === question.correctKey) return `${base} border-green-600 bg-green-50 dark:bg-green-950 font-medium`
+    if (letter === chosen) return `${base} border-red-600 bg-red-50 dark:bg-red-950 font-medium`
     return `${base} opacity-60`
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-6 sm:p-10">
-      <div className="flex items-center justify-between text-sm text-neutral-600 dark:text-neutral-400">
+    <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-10">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
         <span>
-          Question {index + 1} of {questions.length} · {answeredCount} answered
+          Q{index + 1}/{questions.length} · {answeredCount} answered
         </span>
         <span className="flex items-center gap-4">
           {!instantFeedback && <ElapsedTimer startedAt={startedAt} />}
-          <button onClick={flip} className="hover:underline">
+          <button onClick={flip} className="hover:underline whitespace-nowrap">
             {flags[question.id] ? '★ Flagged' : '☆ Flag'}
           </button>
         </span>
@@ -173,61 +173,73 @@ export function TestRunner({
 
       {error && <p className="mt-4 text-sm text-red-600 dark:text-red-500">{error}</p>}
 
-      <p className="mt-6 text-xs uppercase tracking-wide text-neutral-500">
-        {question.subject} · No {question.number}
+      <p className="mt-4 sm:mt-6 text-xs uppercase tracking-wide text-neutral-500">
+        {question.subject} · Q{question.number}
       </p>
-      <h1 className="mt-1 whitespace-pre-line text-xl">{question.stem}</h1>
+      <h1 className="mt-2 whitespace-pre-line text-lg sm:text-xl font-semibold">{question.stem}</h1>
       <QuestionImage src={question.imagePath} />
 
-      <div className="mt-6 flex flex-col gap-3">
+      <div className="mt-6 flex flex-col gap-2">
         {question.options.map((option) => (
-          <button key={option.letter} onClick={() => choose(option.letter)} className={optionClass(option.letter)}>
-            <span className="mr-2 font-medium uppercase">{option.letter})</span>
-            {option.text}
+          <button
+            key={option.letter}
+            onClick={() => choose(option.letter)}
+            className={optionClass(option.letter)}
+            disabled={revealed}
+            type="button"
+          >
+            <span className="font-semibold uppercase text-sm">{option.letter}.</span>
+            <span className="ml-3 text-sm sm:text-base">{option.text}</span>
           </button>
         ))}
       </div>
 
       {revealed && (
-        <div className="mt-6 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-          <p className="font-medium">
-            {chosen === question.correctKey ? 'Correct.' : `Wrong — the answer is ${question.correctKey.toUpperCase()}.`}
+        <div className="mt-6 rounded-lg border border-neutral-200 p-3 sm:p-4 dark:border-neutral-800 bg-white dark:bg-neutral-900/50">
+          <p className={`font-semibold text-sm sm:text-base ${chosen === question.correctKey ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+            {chosen === question.correctKey ? '✓ Correct!' : `✗ Wrong — answer is ${question.correctKey.toUpperCase()}`}
           </p>
           {chosen !== question.correctKey && (
-            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+            <p className="mt-2 text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
               {question.options.find((o) => o.letter === chosen)?.whyWrong ||
-                'No note generated for this option.'}
+                'No explanation generated.'}
             </p>
           )}
-          <p className="mt-3 text-sm">
-            {question.explanation || 'Explanation not generated for this question.'}
+          <p className="mt-3 text-xs sm:text-sm text-neutral-700 dark:text-neutral-300">
+            {question.explanation || 'No explanation generated.'}
           </p>
         </div>
       )}
 
-      <div className="mt-8 flex items-center justify-between">
+      <div className="mt-6 sm:mt-8 flex items-center justify-between gap-2">
         <button
           onClick={() => setIndex((i) => Math.max(0, i - 1))}
           disabled={index === 0}
-          className="rounded-lg border border-neutral-300 px-4 py-2 disabled:opacity-40 dark:border-neutral-700"
+          className="rounded-lg border border-neutral-300 px-3 sm:px-4 py-2 text-sm sm:text-base disabled:opacity-40 dark:border-neutral-700 transition-colors"
+          type="button"
         >
-          Previous
+          ← Prev
         </button>
         {index === questions.length - 1 ? (
-          <button onClick={finish} className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white">
+          <button
+            onClick={finish}
+            className="rounded-lg bg-blue-600 px-4 sm:px-5 py-2 sm:py-2.5 font-medium text-white text-sm sm:text-base hover:bg-blue-700 transition-colors"
+            type="button"
+          >
             Finish
           </button>
         ) : (
           <button
             onClick={() => setIndex((i) => Math.min(questions.length - 1, i + 1))}
-            className="rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-700"
+            className="rounded-lg border border-neutral-300 px-3 sm:px-4 py-2 text-sm sm:text-base dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
+            type="button"
           >
-            Next
+            Next →
           </button>
         )}
       </div>
 
-      <div className="mt-8 grid grid-cols-10 gap-2">
+      <div className="mt-6 sm:mt-8 grid grid-cols-8 sm:grid-cols-10 gap-1 sm:gap-2">
         {questions.map((q, i) => {
           const isAnswered = answers[q.id] !== undefined
           const isCorrect = isAnswered && answers[q.id] === q.correctKey
