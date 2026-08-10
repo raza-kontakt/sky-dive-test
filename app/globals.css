@@ -1,26 +1,117 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* Light mode (default) */
+  --background: #F2F5FA;
+  --surface: #FFFFFF;
+  --text: #111D3E;
+  --muted: #6A768F;
+  --faint: #93A0BC;
+  --line: #E4E8EF;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Brand colors */
+  --blue: #3B8AE8;
+  --blue-dark: #2563eb;
+  --green: #12B27A;
+  --red: #FF5A3C;
+  --amber: #F4AA00;
+
+  /* Semantic */
+  --success: #12B27A;
+  --error: #FF5A3C;
+  --warning: #F4AA00;
+
+  /* Shadows & Effects */
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12);
+
+  /* Font */
+  --font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Dark mode */
+    --background: #0A0F1F;
+    --surface: #131A2E;
+    --text: #F2F5FA;
+    --muted: #93A0BC;
+    --faint: #5B6883;
+    --line: #1E2740;
+
+    /* Shadows */
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.32);
   }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light dark;
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text);
+  font-family: var(--font-family);
+  line-height: 1.5;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* Smooth color transitions */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Links */
+a {
+  color: var(--blue);
+  text-decoration: none;
+  transition-property: color, opacity;
+}
+
+a:hover {
+  color: var(--blue-dark);
+  text-decoration: underline;
+}
+
+/* Buttons */
+button {
+  font-family: var(--font-family);
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition-property: background-color, border-color, color, box-shadow;
+}
+
+/* Form elements */
+input, select, textarea {
+  font-family: var(--font-family);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(59, 142, 232, 0.1);
 }
