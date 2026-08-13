@@ -1,11 +1,10 @@
 #!/bin/sh
 set -e
 
-DB_FILE="${DB_FILE:-/app/data/app.db}"
+echo "entrypoint: running database migrations"
+npx drizzle-kit migrate || true
 
-if [ ! -f "$DB_FILE" ]; then
-  echo "entrypoint: no database at $DB_FILE — seeding from ${BANK_PATH:-data/bank.json}"
-  node /app/seed.cjs
-fi
+echo "entrypoint: seeding database if needed"
+node /app/seed.cjs
 
 exec "$@"

@@ -10,11 +10,12 @@ export const dynamic = 'force-dynamic'
 export default async function ResultsPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params
   const id = Number(sessionId)
-  const session = getSession(id)
+  const session = await getSession(id)
   if (!session) notFound()
 
-  const questions = getQuestions(session.config.questionIds)
-  const attemptsByQuestion = new Map(getSessionAttempts(id).map((a) => [a.questionId, a]))
+  const questions = await getQuestions(session.config.questionIds)
+  const attempts = await getSessionAttempts(id)
+  const attemptsByQuestion = new Map(attempts.map((a) => [a.questionId, a]))
 
   // An unanswered question counts as wrong.
   const result = score(

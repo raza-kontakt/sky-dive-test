@@ -1,14 +1,14 @@
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { drizzle } from 'drizzle-orm/postgres-js'
+import postgres from 'postgres'
 import * as schema from './schema'
 
-export const DEFAULT_DB_FILE = 'data/app.db'
+const connectionString = process.env.DATABASE_URL || 'postgres://localhost/app'
 
-export function getDb(file: string = DEFAULT_DB_FILE) {
-  const sqlite = new Database(file)
-  sqlite.pragma('journal_mode = WAL')
-  sqlite.pragma('foreign_keys = ON')
-  return drizzle({ client: sqlite, schema })
+const client = postgres(connectionString)
+export const db = drizzle({ client, schema })
+
+export async function closeDb() {
+  await client.end()
 }
 
-export type Db = ReturnType<typeof getDb>
+export type Db = typeof db

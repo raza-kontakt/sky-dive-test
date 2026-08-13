@@ -7,12 +7,13 @@ export const dynamic = 'force-dynamic'
 export default async function TestPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params
   const id = Number(sessionId)
-  const session = getSession(id)
+  const session = await getSession(id)
   if (!session) notFound()
 
-  const questions = getQuestions(session.config.questionIds)
+  const questions = await getQuestions(session.config.questionIds)
+  const attempts = await getSessionAttempts(id)
   const initialAnswers = Object.fromEntries(
-    getSessionAttempts(id)
+    attempts
       .filter((a) => a.chosenKey !== null)
       .map((a) => [a.questionId, a.chosenKey as string]),
   )

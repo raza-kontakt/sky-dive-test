@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { and, eq } from 'drizzle-orm'
-import { getDb, type Db } from '../db/client'
+import { db, type Db } from '../db/client'
 import { options, questions, subjects } from '../db/schema'
 import type { BankQuestion } from './lib/parse-trainer'
 
@@ -19,7 +19,7 @@ export function slugify(name: string) {
 }
 
 export async function seed(db: Db, opts: { bankPath: string; explanationsPath?: string }) {
-  migrate(db, { migrationsFolder: 'drizzle' })
+  await migrate(db, { migrationsFolder: 'drizzle' })
 
   const bank: Bank = JSON.parse(readFileSync(opts.bankPath, 'utf8'))
 
@@ -31,13 +31,13 @@ export async function seed(db: Db, opts: { bankPath: string; explanationsPath?: 
 
   const subjectIds = new Map<string, number>()
   for (const name of bank.subjects) {
-    const existing = db.select().from(subjects).where(eq(subjects.name, name)).get()
-    if (existing) {
-      subjectIds.set(name, existing.id)
+    const existing = await db.select().from(subjects).where(eq(subjects.name, name))
+    if (existing.length > 0) {
+      subjectIds.set(name, existing[0].id)
       continue
     }
-    const inserted = db.insert(subjects).values({ name, slug: slugify(name) }).returning().get()
-    subjectIds.set(name, inserted.id)
+    const inserted = await db.insert(subjects).values({ name, slug: slugify(name) }).returning()
+    subjectIds.set(name, inserted[0].id)
   }
 
   for (const q of bank.questions) {
@@ -45,11 +45,11 @@ export async function seed(db: Db, opts: { bankPath: string; explanationsPath?: 
     const explanation = explanations.get(`${q.subject}#${q.number}`)
     const imagePath = q.imageKey ? `/q/${q.imageKey}.png` : null
 
-    const existing = db
+    const existingRows = await db
       .select()
       .from(questions)
       .where(and(eq(questions.subjectId, subjectId), eq(questions.number, q.number)))
-      .get()
+    const existing = existingRows[0]
 
     let questionId: number
     if (existing) {
@@ -57,12 +57,11 @@ export async function seed(db: Db, opts: { bankPath: string; explanationsPath?: 
       // Never clobber an explanation the user has edited.
       const nextExplanation =
         existing.explanationEditedAt !== null ? existing.explanation : (explanation?.explanation ?? existing.explanation)
-      db.update(questions)
+      await db.update(questions)
         .set({ stem: q.stem, imagePath, correctKey: q.correctKey, explanation: nextExplanation })
         .where(eq(questions.id, questionId))
-        .run()
     } else {
-      questionId = db
+      const inserted = await db
         .insert(questions)
         .values({
           subjectId,
@@ -74,10 +73,10 @@ export async function seed(db: Db, opts: { bankPath: string; explanationsPath?: 
           explanationEditedAt: null,
         })
         .returning()
-        .get().id
+      questionId = inserted[0].id
     }
 
-    const existingOptions = db.select().from(options).where(eq(options.questionId, questionId)).all()
+    const existingOptions = await db.select().from(options).where(eq(options.questionId, questionId))
     for (const opt of q.options) {
       const isCorrect = opt.letter === q.correctKey
       const row = existingOptions.find((o) => o.letter === opt.letter)
@@ -91,20 +90,19 @@ export async function seed(db: Db, opts: { bankPath: string; explanationsPath?: 
       const whyWrong = isCorrect ? null : (freshWhyWrong ?? row?.whyWrong ?? null)
 
       if (row) {
-        db.update(options)
+        await db.update(options)
           .set({ text: opt.text, whyWrong })
           .where(eq(options.id, row.id))
-          .run()
       } else {
-        db.insert(options).values({ questionId, letter: opt.letter, text: opt.text, whyWrong }).run()
+        await db.insert(options).values({ questionId, letter: opt.letter, text: opt.text, whyWrong })
       }
     }
   }
 }
 
 if (process.argv[1]?.endsWith('seed.ts')) {
-  seed(getDb(), { bankPath: 'data/bank.json', explanationsPath: 'data/explanations.json' })
-    .then(() => console.log('seeded data/app.db'))
+  seed(db, { bankPath: 'data/bank.json', explanationsPath: 'data/explanations.json' })
+    .then(() => console.log('seeded database'))
     .catch((error) => {
       console.error(error)
       process.exit(1)

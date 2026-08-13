@@ -1,15 +1,15 @@
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { bigint, boolean, integer, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
 
-export const subjects = sqliteTable('subjects', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const subjects = pgTable('subjects', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
   name: text('name').notNull().unique(),
   slug: text('slug').notNull().unique(),
 })
 
-export const questions = sqliteTable(
+export const questions = pgTable(
   'questions',
   {
-    id: integer('id').primaryKey({ autoIncrement: true }),
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     subjectId: integer('subject_id')
       .notNull()
       .references(() => subjects.id),
@@ -18,15 +18,15 @@ export const questions = sqliteTable(
     imagePath: text('image_path'),
     correctKey: text('correct_key').notNull(),
     explanation: text('explanation'),
-    explanationEditedAt: integer('explanation_edited_at'),
+    explanationEditedAt: bigint('explanation_edited_at', { mode: 'number' }),
   },
   (t) => [uniqueIndex('questions_subject_number').on(t.subjectId, t.number)],
 )
 
-export const options = sqliteTable(
+export const options = pgTable(
   'options',
   {
-    id: integer('id').primaryKey({ autoIncrement: true }),
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     questionId: integer('question_id')
       .notNull()
       .references(() => questions.id),
@@ -37,27 +37,27 @@ export const options = sqliteTable(
   (t) => [uniqueIndex('options_question_letter').on(t.questionId, t.letter)],
 )
 
-export const questionMeta = sqliteTable('question_meta', {
+export const questionMeta = pgTable('question_meta', {
   questionId: integer('question_id')
     .primaryKey()
     .references(() => questions.id),
-  flagged: integer('flagged', { mode: 'boolean' }).notNull().default(false),
+  flagged: boolean('flagged').notNull().default(false),
   note: text('note'),
-  updatedAt: integer('updated_at').notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 })
 
-export const sessions = sqliteTable('sessions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const sessions = pgTable('sessions', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
   mode: text('mode').notNull(),
   configJson: text('config_json').notNull(),
-  startedAt: integer('started_at').notNull(),
-  finishedAt: integer('finished_at'),
+  startedAt: bigint('started_at', { mode: 'number' }).notNull(),
+  finishedAt: bigint('finished_at', { mode: 'number' }),
 })
 
-export const attempts = sqliteTable(
+export const attempts = pgTable(
   'attempts',
   {
-    id: integer('id').primaryKey({ autoIncrement: true }),
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     sessionId: integer('session_id')
       .notNull()
       .references(() => sessions.id),
@@ -65,8 +65,8 @@ export const attempts = sqliteTable(
       .notNull()
       .references(() => questions.id),
     chosenKey: text('chosen_key'),
-    isCorrect: integer('is_correct', { mode: 'boolean' }).notNull().default(false),
-    answeredAt: integer('answered_at'),
+    isCorrect: boolean('is_correct').notNull().default(false),
+    answeredAt: bigint('answered_at', { mode: 'number' }),
   },
   (t) => [uniqueIndex('attempts_session_question').on(t.sessionId, t.questionId)],
 )

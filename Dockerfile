@@ -7,11 +7,6 @@ WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# better-sqlite3 compiles from source whenever no prebuilt binary matches the
-# platform; these let that fallback succeed instead of failing the install.
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
 
 # Dev dependencies are required here: next build needs typescript and the
 # Tailwind PostCSS plugin. Only the traced output is carried to the runner.
@@ -22,11 +17,10 @@ COPY . .
 
 RUN npm run build
 
-# Bundle the TypeScript seeder to plain CommonJS. better-sqlite3 stays external
-# so it resolves to the native build in the runner's node_modules.
+# Bundle the TypeScript seeder to plain CommonJS.
 RUN npx esbuild scripts/docker-seed.ts \
   --bundle --platform=node --target=node22 --format=cjs \
-  --external:better-sqlite3 --outfile=seed.cjs
+  --outfile=seed.cjs
 
 # ---------- runner ----------
 FROM node:22-bookworm-slim AS runner

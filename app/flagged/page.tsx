@@ -6,9 +6,9 @@ import { FlaggedQuestionsClient } from '@/components/FlaggedQuestionsClient'
 
 export const dynamic = 'force-dynamic'
 
-export default function FlaggedPage() {
-  const allFlaggedPool = getSelectablePool({ source: 'flagged' })
-  const subjects = listSubjects()
+export default async function FlaggedPage() {
+  const allFlaggedPool = await getSelectablePool({ source: 'flagged' })
+  const subjects = await listSubjects()
 
   // Group flagged questions by subject
   const bySubject = new Map<string, typeof allFlaggedPool>()
@@ -25,7 +25,7 @@ export default function FlaggedPage() {
     count: items.length,
   }))
 
-  const rows = getQuestions(allFlaggedPool.map((entry) => entry.id))
+  const rows = await getQuestions(allFlaggedPool.map((entry) => entry.id))
 
   async function drillFlagged() {
     'use server'
@@ -35,7 +35,8 @@ export default function FlaggedPage() {
 
   async function drillBySubject(subject: string) {
     'use server'
-    const ids = getSelectablePool({ source: 'flagged', subject }).map((entry) => entry.id)
+    const pool = await getSelectablePool({ source: 'flagged', subject })
+    const ids = pool.map((entry) => entry.id)
     const id = await createDrillSession({ count: ids.length, source: 'flagged' })
     redirect(`/test/${id}`)
   }

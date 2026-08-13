@@ -9,10 +9,12 @@ export default async function BrowsePage({
   searchParams: Promise<{ subject?: string; q?: string }>
 }) {
   const { subject, q } = await searchParams
-  const subjects = listSubjects()
-  const ids = getSelectablePool({ subject, source: 'all' }).map((entry) => entry.id)
+  const subjects = await listSubjects()
+  const pool = await getSelectablePool({ subject, source: 'all' })
+  const ids = pool.map((entry) => entry.id)
   const needle = (q ?? '').toLowerCase()
-  const rows = getQuestions(ids).filter(
+  const allRows = await getQuestions(ids)
+  const rows = allRows.filter(
     (question) => needle === '' || question.stem.toLowerCase().includes(needle),
   )
 

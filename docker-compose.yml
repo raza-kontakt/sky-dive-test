@@ -1,13 +1,37 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: dfv-trainer-db
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "-c log_statement=all"
+    ports:
+      - "0.0.0.0:5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   app:
     build: .
     image: dfv-trainer
     container_name: dfv-trainer
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/app
     ports:
       # Override APP_BIND/APP_PORT in .env when 3000 is taken or the app should
       # only listen on loopback (behind a reverse proxy).
       - "${APP_BIND:-0.0.0.0}:${APP_PORT:-3000}:3000"
-    volumes:
-      # SQLite database only. Question images ship inside the image.
-      - ./data:/app/data
     restart: unless-stopped
+
+volumes:
+  postgres_data:

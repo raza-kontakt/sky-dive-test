@@ -8,21 +8,21 @@ import { getOverallStats, listSubjects, getSelectablePool } from '@/lib/queries'
 
 export const dynamic = 'force-dynamic'
 
-export default function Home() {
-  let subjects: ReturnType<typeof listSubjects>
-  let stats: ReturnType<typeof getOverallStats>
+export default async function Home() {
+  let subjects: Awaited<ReturnType<typeof listSubjects>>
+  let stats: Awaited<ReturnType<typeof getOverallStats>>
   try {
-    subjects = listSubjects()
-    stats = getOverallStats()
+    subjects = await listSubjects()
+    stats = await getOverallStats()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    if (!message.includes('no such table')) throw error
+    if (!message.includes('relation') && !message.includes('connection')) throw error
     redirect('/setup')
   }
   if (subjects.length === 0) redirect('/setup')
 
   // Get flagged questions grouped by subject
-  const flaggedPool = getSelectablePool({ source: 'flagged' })
+  const flaggedPool = await getSelectablePool({ source: 'flagged' })
   const flaggedBySubject = new Map<string, number>()
   for (const item of flaggedPool) {
     flaggedBySubject.set(item.subject, (flaggedBySubject.get(item.subject) || 0) + 1)

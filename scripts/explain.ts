@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { DEFAULT_DB_FILE, getDb } from '../db/client'
+import { db } from '../db/client'
 import { options, questions, subjects } from '../db/schema'
 import type { BankQuestion } from './lib/parse-trainer'
 import type { ExplanationRecord } from './seed'
@@ -43,12 +43,10 @@ function key(record: { subject: string; number: number }) {
 // artifact that carries explanations to a fresh deployment, and it is gitignored.
 // Reading what the database already holds means a lost or partial JSON file costs
 // a re-read rather than 500 regenerated explanations.
-function loadFromDatabase(): ExplanationRecord[] {
-  if (!existsSync(DEFAULT_DB_FILE)) return []
-
+async function loadFromDatabase(): Promise<ExplanationRecord[]> {
   let rows: { subject: string; number: number; explanation: string | null; letter: string | null; whyWrong: string | null }[]
   try {
-    rows = getDb()
+    rows = await db
       .select({
         subject: subjects.name,
         number: questions.number,
@@ -59,11 +57,10 @@ function loadFromDatabase(): ExplanationRecord[] {
       .from(questions)
       .innerJoin(subjects, eq(subjects.id, questions.subjectId))
       .leftJoin(options, eq(options.questionId, questions.id))
-      .all()
   } catch (error) {
-    // An unseeded database file has no tables yet — nothing to recover, not a failure.
+    // Database not yet initialized or not accessible — nothing to recover, not a failure.
     const message = error instanceof Error ? error.message : String(error)
-    if (!message.includes('no such table')) throw error
+    if (!message.includes('relation') && !message.includes('connection')) throw error
     return []
   }
 
@@ -84,16 +81,7 @@ const existing: ExplanationRecord[] = existsSync(OUT_PATH)
 const done = new Set(existing.map(key))
 const records = [...existing]
 
-const recovered = loadFromDatabase().filter((record) => !done.has(key(record)))
-for (const record of recovered) {
-  records.push(record)
-  done.add(key(record))
-}
-
-const pending = bank.questions.filter((q) => !done.has(key(q)))
-console.log(
-  `${records.length} already generated${recovered.length ? ` (${recovered.length} recovered from ${DEFAULT_DB_FILE})` : ''}, ${pending.length} to go`,
-)
+let recovered: ExplanationRecord[] = []
 
 // Rename is atomic, so a crash mid-write leaves either the old complete file or the
 // new complete file, never a truncated one that would corrupt the resumable run.
@@ -155,6 +143,17 @@ async function explain(q: BankQuestion): Promise<ExplanationRecord | null> {
 }
 
 async function main() {
+  recovered = (await loadFromDatabase()).filter((record) => !done.has(key(record)))
+  for (const record of recovered) {
+    records.push(record)
+    done.add(key(record))
+  }
+
+  const pending = bank.questions.filter((q) => !done.has(key(q)))
+  console.log(
+    `${records.length} already generated${recovered.length ? ` (${recovered.length} recovered from database)` : ''}, ${pending.length} to go`,
+  )
+
   // Persist recovered records up front so the artifact is repaired even when there
   // is nothing left to generate and the loop below never runs.
   if (recovered.length) writeRecordsAtomic(records)
